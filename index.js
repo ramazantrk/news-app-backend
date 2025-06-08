@@ -6,8 +6,8 @@ const cheerio = require('cheerio');
 const { createCanvas, loadImage } = require('canvas');
 const cors = require('cors');
 const sharp = require('sharp');
-// const path = require('path'); // Render.com'da yerel path'lere statik dosya sunumu genelde farklı yapılır
-// const fs = require('fs'); // Render.com'da dosya sistemine kalıcı yazma yapılmaz
+const path = require('path'); // Yerel dosya yolları için eklendi
+const fs = require('fs');     // Dosya sistemi işlemleri için eklendi
 
 const app = express();
 // Render.com, portu process.env.PORT ortam değişkeni üzerinden sağlar.
@@ -19,11 +19,12 @@ app.use(cors());
 // JSON body parsing'i etkinleştirin
 app.use(express.json());
 
-// NOT: Render.com'da 'posts' klasörünü statik olarak sunmak Firebase Functions'taki gibi karmaşıktır.
-// Genelde bu tür görselleri bir bulut depolama hizmetine (örn. AWS S3, Google Cloud Storage) yüklemeniz gerekir.
-// Ancak, Firebase Functions'taki gibi, biz zaten oluşturulan görseli Base64 olarak geri döndürüyoruz.
-// Bu yüzden Render.com üzerinde de statik dosya sunumuna ihtiyacımız olmayacak.
-// app.use('/posts', express.static(postsDir)); // Bu satıra gerek kalmadı
+// Oluşturulan görselleri statik olarak sunacağımız dizin
+const postsDir = path.join(__dirname, 'posts');
+if (!fs.existsSync(postsDir)) {
+    fs.mkdirSync(postsDir);
+}
+app.use('/posts', express.static(postsDir)); // /posts URL'si altında 'posts' klasörünü sun
 
 // Şehir listesi
 const cities = [
@@ -47,12 +48,10 @@ app.get('/api/news/:city', async (req, res) => {
     console.log(`Haberler çekiliyor: ${url}`);
 
     try {
-        const response = await axios.get(url); // API_URL kullanımı buradan kaldırıldı!
-        
+        const response = await axios.get(url);
         const $ = cheerio.load(response.data);
 
         const news = [];
-        // Son 5 haberi çekiyoruz
         $('li.nws.w-100.h-100.gap-xs-0').slice(0, 5).each((i, element) => {
             const title = $(element).find('span.title').text().trim();
             const detail = $(element).find('p.news-detail.news-column > a').text().trim();
@@ -74,15 +73,14 @@ app.get('/api/news/:city', async (req, res) => {
 // Yardımcı Fonksiyon: Görseli URL'den çek ve JPEG'e dönüştürerek Buffer olarak yükle
 async function loadImageAndConvert(url) {
     try {
-        const response = await axios.get(url, { responseType: 'arraybuffer' }); // Görseli buffer olarak çek
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
         const imageBuffer = Buffer.from(response.data);
 
-        // Gelen görseli JPEG'e dönüştür (kalite %80)
         const convertedBuffer = await sharp(imageBuffer)
                                         .jpeg({ quality: 80 })
                                         .toBuffer();
 
-        return await loadImage(convertedBuffer); // Dönüştürülmüş Buffer'ı loadImage'e ver
+        return await loadImage(convertedBuffer);
     } catch (error) {
         console.error(`Görsel yüklenemedi veya dönüştürülemedi from URL (${url}):`, error.message);
         throw new Error(`Görsel yüklenemedi/dönüştürülemedi: ${error.message}`);
@@ -93,7 +91,6 @@ async function loadImageAndConvert(url) {
 app.post('/api/create-post-image', async (req, res) => {
     const { imageUrl, title, content, username, altname, logoUrl } = req.body;
 
-    // Gelen imageUrl'i logluyoruz (Render.com loglarında görünecektir)
     console.log(`POST isteği alındı. İşlenecek haber görseli URL: ${imageUrl}`);
 
     if (!imageUrl || !title || !content || !username || !altname) {
@@ -104,14 +101,11 @@ app.post('/api/create-post-image', async (req, res) => {
     const height = 1200;
 
     const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext('2d'); // ÇÖZÜM: ctx değişkeni burada tanımlandı
+    const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
     try {
-        // Logo ekleme: Render.com'da yerel dosya sistemi erişimi sınırlıdır.
-        // Logo URL'sini doğrudan bir web kaynağından çekmeliyiz.
-        // LogoUrl React Native'den geliyorsa ve genel bir URL'e sahipse kullanılabilir.
         if (logoUrl) {
             try {
                 const logo = await loadImageAndConvert(logoUrl);
@@ -121,7 +115,6 @@ app.post('/api/create-post-image', async (req, res) => {
             }
         }
 
-        // Kullanıcı adı ekleme
         ctx.fillStyle = '#000000';
         ctx.font = 'bold 40px Arial';
         ctx.fillText(username, 200, 100);
@@ -130,19 +123,16 @@ app.post('/api/create-post-image', async (req, res) => {
         ctx.font = '28px Arial';
         ctx.fillText(altname, 200, 140);
 
-        // Haber görseli ekleme
-        const newsImage = await loadImageAndConvert(imageUrl); // Hatanın bu kısımda olması muhtemel
+        const newsImage = await loadImageAndConvert(imageUrl);
         const imgHeight = 450;
         const imgWidth = (newsImage.width * imgHeight) / newsImage.height;
         const xOffset = (width - imgWidth) / 2;
         ctx.drawImage(newsImage, xOffset, height - imgHeight - 200, imgWidth, imgHeight);
 
-        // Başlık ekleme
         ctx.fillStyle = '#000000';
         ctx.font = 'bold 50px Arial';
         drawWrappedText(ctx, title, 40, 250, width - 80, 50 + 8);
 
-        // İçerik ekleme
         ctx.font = '36px Arial';
         const contentLines = getLineCount(content, width - 80, 36, ctx);
         if (contentLines > 5) {
@@ -150,16 +140,32 @@ app.post('/api/create-post-image', async (req, res) => {
         }
         drawWrappedText(ctx, content, 40, 320 + getWrappedTextHeight(ctx, title, width - 80, 50 + 8), width - 80, ctx.font.match(/\d+/)[0] / 1 + 8);
 
-        // Resim dosyasını Buffer olarak alıp Base64 string'i olarak geri döndürüyoruz
-        const imageBuffer = canvas.toBuffer('image/png');
-        const base64Image = `data:image/png;base64,${imageBuffer.toString('base64')}`;
-        
-        // Base64 string'ini döndürüyoruz
-        res.json({ success: true, imageUrl: base64Image });
+        const timestamp = Date.now();
+        const fileName = `news_post_${timestamp}.png`;
+        const filePath = path.join(postsDir, fileName); // Yerel posts klasörüne kaydet
+
+        const out = fs.createWriteStream(filePath);
+        const stream = canvas.createPNGStream();
+        stream.pipe(out);
+
+        await new Promise((resolve, reject) => {
+            out.on('finish', () => {
+                console.log(`✅ Resim kaydedildi: ${filePath}`);
+                resolve();
+            });
+            out.on('error', reject);
+        });
+
+        // Oluşturulan görselin URL'sini döndür (Render.com URL'nize göre ayarlanmalı)
+        // Render.com'da SERVICE_URL adında bir ortam değişkeni ayarlamanız gerekecek
+        const publicUrl = `${process.env.SERVICE_URL}/posts/${fileName}`; // Render.com URL'sini kullan
+        console.log('Oluşturulan Post Görseli URL:', publicUrl);
+
+        res.json({ success: true, imageUrl: publicUrl }); // URL'yi geri döndür
 
     } catch (error) {
-        console.error('Görsel oluşturma hatası:', error.message);
-        res.status(500).json({ error: 'Görsel oluşturulurken bir hata oluştu.' });
+        console.error('Görsel oluşturma ve kaydetme hatası:', error.message);
+        res.status(500).json({ error: 'Görsel oluşturulurken veya kaydedilirken bir sorun oluştu.' });
     }
 });
 
@@ -183,7 +189,7 @@ function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
 }
 
 // Metin satır sayısını hesaplama (yaklaşık)
-function getLineCount(text, maxWidth, fontSize, ctx) {
+function getLineCount(ctx, text, maxWidth, fontSize) {
     const words = text.split(' ');
     let line = '';
     let lineCount = 1;
