@@ -93,6 +93,9 @@ async function loadImageAndConvert(url) {
 app.post('/api/create-post-image', async (req, res) => {
     const { imageUrl, title, content, username, altname, logoUrl } = req.body;
 
+    // Gelen imageUrl'i logluyoruz (Render.com loglarında görünecektir)
+    console.log(`POST isteği alındı. İşlenecek haber görseli URL: ${imageUrl}`);
+
     if (!imageUrl || !title || !content || !username || !altname) {
         return res.status(400).json({ error: 'Eksik parametreler.' });
     }
@@ -127,7 +130,7 @@ app.post('/api/create-post-image', async (req, res) => {
         ctx.fillText(altname, 200, 140);
 
         // Haber görseli ekleme
-        const newsImage = await loadImageAndConvert(imageUrl);
+        const newsImage = await loadImageAndConvert(imageUrl); // Hatanın bu kısımda olması muhtemel
         const imgHeight = 450;
         const imgWidth = (newsImage.width * imgHeight) / newsImage.height;
         const xOffset = (width - imgWidth) / 2;
