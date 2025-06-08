@@ -104,6 +104,7 @@ app.post('/api/create-post-image', async (req, res) => {
     const height = 1200;
 
     const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d'); // ÇÖZÜM: ctx değişkeni burada tanımlandı
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
