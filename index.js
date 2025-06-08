@@ -106,7 +106,7 @@ app.post('/api/create-post-image', async (req, res) => {
     ctx.fillRect(0, 0, width, height);
 
     try {
-        // Logo yükleme kısmı kaldırıldı veya devre dışı bırakıldı
+        // Logo yükleme bloğu tamamen kaldırıldı/yorum satırı yapıldı
         // if (logoUrl) {
         //     try {
         //         const logo = await loadImageAndConvert(logoUrl);
@@ -143,7 +143,7 @@ app.post('/api/create-post-image', async (req, res) => {
 
         const timestamp = Date.now();
         const fileName = `news_post_${timestamp}.png`;
-        const filePath = path.join(postsDir, fileName); // Yerel posts klasörüne kaydet
+        const filePath = path.join(postsDir, fileName);
 
         const out = fs.createWriteStream(filePath);
         const stream = canvas.createPNGStream();
@@ -157,7 +157,6 @@ app.post('/api/create-post-image', async (req, res) => {
             out.on('error', reject);
         });
 
-        // Oluşturulan görselin URL'sini döndür (Render.com URL'nize göre ayarlanmalı)
         const publicUrl = `${process.env.SERVICE_URL}/posts/${fileName}`;
         console.log('Oluşturulan Post Görseli URL:', publicUrl);
 
@@ -211,6 +210,7 @@ function getLineCount(ctx, text, maxWidth, fontSize) {
 // Sarılmış metnin toplam yüksekliğini hesaplama
 function getWrappedTextHeight(ctx, text, maxWidth, lineHeight) {
     const words = text.split(' ');
+ ');
     let line = '';
     let totalHeight = 0;
     let currentY = 0;
