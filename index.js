@@ -106,14 +106,15 @@ app.post('/api/create-post-image', async (req, res) => {
     ctx.fillRect(0, 0, width, height);
 
     try {
-        if (logoUrl) {
-            try {
-                const logo = await loadImageAndConvert(logoUrl);
-                ctx.drawImage(logo, 30, 30, 150, 150);
-            } catch (logoErr) {
-                console.error('Logo yüklenemedi (uzak URL):', logoErr.message);
-            }
-        }
+        // Logo yükleme kısmı kaldırıldı veya devre dışı bırakıldı
+        // if (logoUrl) {
+        //     try {
+        //         const logo = await loadImageAndConvert(logoUrl);
+        //         ctx.drawImage(logo, 30, 30, 150, 150);
+        //     } catch (logoErr) {
+        //         console.error('Logo yüklenemedi (uzak URL):', logoErr.message);
+        //     }
+        // }
 
         ctx.fillStyle = '#000000';
         ctx.font = 'bold 40px Arial';
@@ -157,11 +158,10 @@ app.post('/api/create-post-image', async (req, res) => {
         });
 
         // Oluşturulan görselin URL'sini döndür (Render.com URL'nize göre ayarlanmalı)
-        // Render.com'da SERVICE_URL adında bir ortam değişkeni ayarlamanız gerekecek
-        const publicUrl = `${process.env.SERVICE_URL}/posts/${fileName}`; // Render.com URL'sini kullan
+        const publicUrl = `${process.env.SERVICE_URL}/posts/${fileName}`;
         console.log('Oluşturulan Post Görseli URL:', publicUrl);
 
-        res.json({ success: true, imageUrl: publicUrl }); // URL'yi geri döndür
+        res.json({ success: true, imageUrl: publicUrl });
 
     } catch (error) {
         console.error('Görsel oluşturma ve kaydetme hatası:', error.message);
