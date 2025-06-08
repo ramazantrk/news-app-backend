@@ -43,11 +43,12 @@ app.get('/api/news/:city', async (req, res) => {
         return res.status(400).json({ error: 'Geçersiz şehir adı.' });
     }
 
-    const url = `https://www.sondakika.com/${city}/`;
+    const url = `https://www.sondakika.com/${city}/`; // Haber çekme URL'si doğrudan burada kullanılmalı
     console.log(`Haberler çekiliyor: ${url}`);
 
     try {
-        const response = await axios.get(url);
+        const response = await axios.get(url); // API_URL kullanımı buradan kaldırıldı!
+        
         const $ = cheerio.load(response.data);
 
         const news = [];
